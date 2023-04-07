@@ -26,13 +26,12 @@ import {
 import { Avatar } from "./chat";
 
 import Locale, { AllLangs, changeLang, getLang } from "../locales";
-import { getCurrentVersion, getEmojiUrl } from "../utils";
+import { getCurrentVersion } from "../utils";
 import Link from "next/link";
 import { UPDATE_URL } from "../constant";
 import { SearchService, usePromptStore } from "../store/prompt";
 import { requestUsage } from "../requests";
 import { ErrorBoundary } from "./error";
-import { InputRange } from "./input-range";
 
 function SettingItem(props: {
   title: string;
@@ -97,17 +96,26 @@ export function Settings(props: { closeSettings: () => void }) {
 
   const [usage, setUsage] = useState<{
     used?: number;
-    subscription?: number;
   }>();
   const [loadingUsage, setLoadingUsage] = useState(false);
   function checkUsage() {
     setLoadingUsage(true);
     requestUsage()
-      .then((res) => setUsage(res))
+      .then((res) =>
+        setUsage({
+          used: res,
+        }),
+      )
       .finally(() => {
         setLoadingUsage(false);
       });
   }
+
+  useEffect(() => {
+    checkUpdate();
+    checkUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const accessStore = useAccessStore();
   const enabledAccessControl = useMemo(
@@ -120,26 +128,12 @@ export function Settings(props: { closeSettings: () => void }) {
   const builtinCount = SearchService.count.builtin;
   const customCount = promptStore.prompts.size ?? 0;
 
-  const showUsage = !!accessStore.token || !!accessStore.accessCode;
-
+  const showUsage = accessStore.token !== "";
   useEffect(() => {
-    checkUpdate();
-    showUsage && checkUsage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const keydownEvent = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        props.closeSettings();
-      }
-    };
-    document.addEventListener("keydown", keydownEvent);
-    return () => {
-      document.removeEventListener("keydown", keydownEvent);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (showUsage) {
+      checkUsage();
+    }
+  }, [showUsage]);
 
   return (
     <ErrorBoundary>
@@ -188,7 +182,6 @@ export function Settings(props: { closeSettings: () => void }) {
                 <EmojiPicker
                   lazyLoadEmojis
                   theme={EmojiTheme.AUTO}
-                  getEmojiUrl={getEmojiUrl}
                   onEmojiClick={(e) => {
                     updateConfig((config) => (config.avatar = e.unified));
                     setShowEmojiPicker(false);
@@ -288,7 +281,8 @@ export function Settings(props: { closeSettings: () => void }) {
             title={Locale.Settings.FontSize.Title}
             subTitle={Locale.Settings.FontSize.SubTitle}
           >
-            <InputRange
+            <input
+              type="range"
               title={`${config.fontSize ?? 14}px`}
               value={config.fontSize}
               min="12"
@@ -300,7 +294,7 @@ export function Settings(props: { closeSettings: () => void }) {
                     (config.fontSize = Number.parseInt(e.currentTarget.value)),
                 )
               }
-            ></InputRange>
+            ></input>
           </SettingItem>
 
           <SettingItem title={Locale.Settings.TightBorder}>
@@ -398,10 +392,7 @@ export function Settings(props: { closeSettings: () => void }) {
               showUsage
                 ? loadingUsage
                   ? Locale.Settings.Usage.IsChecking
-                  : Locale.Settings.Usage.SubTitle(
-                      usage?.used ?? "[?]",
-                      usage?.subscription ?? "[?]",
-                    )
+                  : Locale.Settings.Usage.SubTitle(usage?.used ?? "[?]")
                 : Locale.Settings.Usage.NoAccess
             }
           >
@@ -420,19 +411,20 @@ export function Settings(props: { closeSettings: () => void }) {
             title={Locale.Settings.HistoryCount.Title}
             subTitle={Locale.Settings.HistoryCount.SubTitle}
           >
-            <InputRange
+            <input
+              type="range"
               title={config.historyMessageCount.toString()}
               value={config.historyMessageCount}
               min="0"
               max="25"
-              step="1"
+              step="2"
               onChange={(e) =>
                 updateConfig(
                   (config) =>
                     (config.historyMessageCount = e.target.valueAsNumber),
                 )
               }
-            ></InputRange>
+            ></input>
           </SettingItem>
 
           <SettingItem
@@ -479,7 +471,8 @@ export function Settings(props: { closeSettings: () => void }) {
             title={Locale.Settings.Temperature.Title}
             subTitle={Locale.Settings.Temperature.SubTitle}
           >
-            <InputRange
+            <input
+              type="range"
               value={config.modelConfig.temperature?.toFixed(1)}
               min="0"
               max="2"
@@ -493,7 +486,7 @@ export function Settings(props: { closeSettings: () => void }) {
                       )),
                 );
               }}
-            ></InputRange>
+            ></input>
           </SettingItem>
           <SettingItem
             title={Locale.Settings.MaxTokens.Title}
@@ -519,7 +512,8 @@ export function Settings(props: { closeSettings: () => void }) {
             title={Locale.Settings.PresencePenlty.Title}
             subTitle={Locale.Settings.PresencePenlty.SubTitle}
           >
-            <InputRange
+            <input
+              type="range"
               value={config.modelConfig.presence_penalty?.toFixed(1)}
               min="-2"
               max="2"
@@ -533,7 +527,7 @@ export function Settings(props: { closeSettings: () => void }) {
                       )),
                 );
               }}
-            ></InputRange>
+            ></input>
           </SettingItem>
         </List>
       </div>
